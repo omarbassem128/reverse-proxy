@@ -12,5 +12,5 @@ func main() {
 
 func serverHandler(rw http.ResponseWriter, request *http.Request){
 	clientIP := request.Header.Get("X-Forwarded-For")
-	fmt.Fprintf(rw, "Your real IP is: %s\n", clientIP)
+	fmt.Fprintf(rw, "This is 9090. Your real IP is: %s\n", clientIP)
 }
