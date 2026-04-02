@@ -22,10 +22,10 @@ func main() {
 	urlsSlice := []*url.URL{destServer1URL, destServer2URL}
 	pr := newProxyDest(urlsSlice)
 
-	rl := middleware.NewRateLimiter()
-	// httputil.ReverseProxy implements next.serveHTTP(), which is defined in http.Handler.
-	// This is why pr is accepted as an argument for rateLimiterMiddleware().
-	protectedProxy := rl.RateLimiterMiddleware(pr)
+	rl := middleware.NewTokenBucketRateLimiter()
+	// httputil.ReverseProxy implements serveHTTP(), which is defined in http.Handler.
+	// This is why pr is accepted as an argument for FixedWinowRateLimiter().
+	protectedProxy := rl.TokenBucketRateLimiter(pr)
 
 	http.ListenAndServe(":3000", protectedProxy)
 }
