@@ -17,7 +17,7 @@ type TokenBuckerRl struct {
 	clients map[string]*ClientState
 }
 
-func (tbrl *TokenBuckerRl) TokenBucketRateLimiter(next http.Handler) http.Handler {
+func (tokenBucketRlStruct *TokenBuckerRl) TokenBucketRateLimiter(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		host, _, err := net.SplitHostPort(r.RemoteAddr)
 		if err != nil {
@@ -25,13 +25,13 @@ func (tbrl *TokenBuckerRl) TokenBucketRateLimiter(next http.Handler) http.Handle
 			return
 		}
 		allow := false
-		tbrl.mu.Lock()
+		tokenBucketRlStruct.mu.Lock()
 		now := time.Now()
 
-		currentClient := tbrl.clients[host]
+		currentClient := tokenBucketRlStruct.clients[host]
 		if currentClient == nil {
-			tbrl.clients[host] = &ClientState{tokens: 5, lastVisited: now}
-			currentClient = tbrl.clients[host]
+			tokenBucketRlStruct.clients[host] = &ClientState{tokens: 5, lastVisited: now}
+			currentClient = tokenBucketRlStruct.clients[host]
 		} else {
 			lastVisited := currentClient.lastVisited
 			difference := time.Since(lastVisited)
@@ -47,7 +47,7 @@ func (tbrl *TokenBuckerRl) TokenBucketRateLimiter(next http.Handler) http.Handle
 			currentClient.tokens--
 		}
 
-		tbrl.mu.Unlock()
+		tokenBucketRlStruct.mu.Unlock()
 
 		if allow {
 			next.ServeHTTP(w, r)

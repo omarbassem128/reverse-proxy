@@ -1,12 +1,19 @@
 package main
 
 import (
-	"github.com/reverse-proxy/backend/middleware"
+	"context"
+	"fmt"
 	"log"
 	"net/http"
 	"net/http/httputil"
 	"net/url"
+	"os"
+	"os/signal"
 	"sync"
+	"syscall"
+	"time"
+
+	"github.com/reverse-proxy/backend/middleware"
 )
 
 func main() {
@@ -27,7 +34,26 @@ func main() {
 	// This is why pr is accepted as an argument for FixedWinowRateLimiter().
 	protectedProxy := rl.TokenBucketRateLimiter(pr)
 
-	http.ListenAndServe(":3000", protectedProxy)
+	
+
+	server := http.Server{
+		Addr: ":3000",
+		Handler: protectedProxy,
+		ReadTimeout: time.Second * 5,
+		WriteTimeout: time.Second * 5,
+		IdleTimeout: time.Second * 5,
+	}
+
+	go server.ListenAndServe()
+	quit := make(chan os.Signal, 1)
+	signal.Notify(quit, os.Interrupt, syscall.SIGTERM)
+	stopServer := <-quit
+	fmt.Printf("Shutting down server... Reason: %v\n", stopServer)
+	ctx, cancel := context.WithTimeout(context.Background(), 10 * time.Second)
+	defer cancel()
+	server.Shutdown(ctx)
+	
+
 }
 
 func newProxyDest(urls []*url.URL) *httputil.ReverseProxy {
