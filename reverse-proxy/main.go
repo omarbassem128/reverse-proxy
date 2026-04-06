@@ -68,7 +68,18 @@ func newProxyDest(urls []*url.URL) *httputil.ReverseProxy {
 			pr.SetXForwarded()
 			counter++
 		},
+		Transport: httpTransport(),
 	}
 
 	return rProxy
+}
+
+func httpTransport() *http.Transport {
+	return &http.Transport{
+		ResponseHeaderTimeout: time.Second * 3,
+		TLSHandshakeTimeout: time.Second * 2,
+		MaxIdleConns: 5,
+		MaxIdleConnsPerHost: 5,
+		IdleConnTimeout: time.Second * 4,
+	}
 }
