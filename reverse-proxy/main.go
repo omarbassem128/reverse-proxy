@@ -3,7 +3,9 @@ package main
 import (
 	"context"
 	"fmt"
+	"github.com/reverse-proxy/backend/middleware"
 	"log"
+	"log/slog"
 	"net/http"
 	"net/http/httputil"
 	"net/url"
@@ -12,15 +14,15 @@ import (
 	"sync"
 	"syscall"
 	"time"
-
-	"github.com/reverse-proxy/backend/middleware"
 )
 
 func main() {
+
 	destServer1URL, err1 := url.Parse("http://localhost:9090")
 	if err1 != nil {
 		log.Fatal(err1)
 	}
+
 	destServer2URL, err2 := url.Parse("http://localhost:9091")
 	if err2 != nil {
 		log.Fatal(err2)
@@ -31,17 +33,18 @@ func main() {
 
 	rl := middleware.NewTokenBucketRateLimiter()
 	// httputil.ReverseProxy implements serveHTTP(), which is defined in http.Handler.
-	// This is why pr is accepted as an argument for FixedWinowRateLimiter().
-	protectedProxy := rl.TokenBucketRateLimiter(pr)
-
-	
+	// This is why pr is accepted as an argument for FixedWinowRateLimiter() and TokenBucketRateLimiter().
+	midHandler := rl.TokenBucketRateLimiter(pr)
+	Logger := slog.New(slog.NewJSONHandler(os.Stdout, nil))
+	midHandler = middleware.NewLogRequest(Logger)(midHandler)
+	midHandler = middleware.GenerateLogID(midHandler)
 
 	server := http.Server{
-		Addr: ":3000",
-		Handler: protectedProxy,
-		ReadTimeout: time.Second * 5,
+		Addr:         ":3000",
+		Handler:      midHandler,
+		ReadTimeout:  time.Second * 5,
 		WriteTimeout: time.Second * 5,
-		IdleTimeout: time.Second * 5,
+		IdleTimeout:  time.Second * 5,
 	}
 
 	go server.ListenAndServe()
@@ -49,10 +52,9 @@ func main() {
 	signal.Notify(quit, os.Interrupt, syscall.SIGTERM)
 	stopServer := <-quit
 	fmt.Printf("Shutting down server... Reason: %v\n", stopServer)
-	ctx, cancel := context.WithTimeout(context.Background(), 10 * time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
 	defer cancel()
 	server.Shutdown(ctx)
-	
 
 }
 
@@ -77,9 +79,9 @@ func newProxyDest(urls []*url.URL) *httputil.ReverseProxy {
 func httpTransport() *http.Transport {
 	return &http.Transport{
 		ResponseHeaderTimeout: time.Second * 3,
-		TLSHandshakeTimeout: time.Second * 2,
-		MaxIdleConns: 5,
-		MaxIdleConnsPerHost: 5,
-		IdleConnTimeout: time.Second * 4,
+		TLSHandshakeTimeout:   time.Second * 2,
+		MaxIdleConns:          5,
+		MaxIdleConnsPerHost:   5,
+		IdleConnTimeout:       time.Second * 4,
 	}
 }
