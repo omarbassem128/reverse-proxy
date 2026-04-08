@@ -29,12 +29,12 @@ func main() {
 	}
 
 	urlsSlice := []*url.URL{destServer1URL, destServer2URL}
-	pr := newProxyDest(urlsSlice)
+	reverseProxy := newProxyDest(urlsSlice)
 
 	rl := middleware.NewTokenBucketRateLimiter()
 	// httputil.ReverseProxy implements serveHTTP(), which is defined in http.Handler.
-	// This is why pr is accepted as an argument for FixedWinowRateLimiter() and TokenBucketRateLimiter().
-	midHandler := rl.TokenBucketRateLimiter(pr)
+	// This is why reverseProxy is accepted as an argument for FixedWinowRateLimiter() and TokenBucketRateLimiter().
+	midHandler := rl.TokenBucketRateLimiter(reverseProxy)
 	Logger := slog.New(slog.NewJSONHandler(os.Stdout, nil))
 	midHandler = middleware.NewLogRequest(Logger)(midHandler)
 	midHandler = middleware.GenerateLogID(midHandler)
@@ -47,7 +47,12 @@ func main() {
 		IdleTimeout:  time.Second * 5,
 	}
 
-	go server.ListenAndServe()
+	go func() {
+		err := server.ListenAndServeTLS("`cert.pem", "key.pem")
+		if err != nil && err != http.ErrServerClosed {
+			log.Fatalf("crash: %s", err)
+		}
+	}()
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, os.Interrupt, syscall.SIGTERM)
 	stopServer := <-quit
@@ -62,12 +67,12 @@ func newProxyDest(urls []*url.URL) *httputil.ReverseProxy {
 	var mu sync.Mutex
 	counter := 0
 	rProxy := &httputil.ReverseProxy{
-		Rewrite: func(pr *httputil.ProxyRequest) {
+		Rewrite: func(proxyRequest *httputil.ProxyRequest) {
 			mu.Lock()
 			defer mu.Unlock()
 			counter = counter % len(urls)
-			pr.SetURL(urls[counter])
-			pr.SetXForwarded()
+			proxyRequest.SetURL(urls[counter])
+			proxyRequest.SetXForwarded()
 			counter++
 		},
 		Transport: httpTransport(),
