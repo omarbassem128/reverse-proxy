@@ -1,6 +1,7 @@
 package middleware
 
 import (
+	"context"
 	"net"
 	"net/http"
 	"sync"
@@ -8,12 +9,14 @@ import (
 )
 
 type ClientState struct {
-	tokens      int
+	tokens int
+
 	lastVisited time.Time
 }
 
 type TokenBuckerRl struct {
-	mu      sync.Mutex
+	mu sync.Mutex
+
 	clients map[string]*ClientState
 }
 
@@ -58,7 +61,34 @@ func (tokenBucketRlStruct *TokenBuckerRl) TokenBucketRateLimiter(next http.Handl
 	})
 }
 
-func NewTokenBucketRateLimiter() *TokenBuckerRl {
+func NewTokenBucketRateLimiter(ctx context.Context) *TokenBuckerRl {
+
 	rl := &TokenBuckerRl{clients: make(map[string]*ClientState)}
+	go func() {
+		ticker := time.NewTicker(time.Minute * 3)
+		for {
+			select {
+			case <-ticker.C:
+				cleanupMap(rl)
+
+			case <-ctx.Done():
+				return
+			}
+		}
+	}()
 	return rl
+}
+
+func cleanupMap(tokenBucketRlStruct *TokenBuckerRl) {
+	tokenBucketRlStruct.mu.Lock()
+	defer tokenBucketRlStruct.mu.Unlock()
+
+	for key, val := range tokenBucketRlStruct.clients {
+		if time.Since(val.lastVisited) > time.Minute*5 {
+			delete(tokenBucketRlStruct.clients, key)
+
+		}
+
+	}
+
 }
