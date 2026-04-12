@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"github.com/reverse-proxy/backend/middleware"
 	"log"
 	"log/slog"
 	"net/http"
@@ -13,8 +14,6 @@ import (
 	"sync"
 	"syscall"
 	"time"
-
-	"github.com/reverse-proxy/backend/middleware"
 )
 
 func main() {
