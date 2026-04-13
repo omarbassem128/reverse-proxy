@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"github.com/joho/godotenv"
 	"github.com/reverse-proxy/backend/middleware"
 	"log"
 	"log/slog"
@@ -17,6 +18,8 @@ import (
 )
 
 func main() {
+	godotenv.Load()
+	secretKey := os.Getenv("JWT_SECRET")
 
 	destServer1URL, err1 := url.Parse("http://localhost:9090")
 	if err1 != nil {
@@ -33,7 +36,7 @@ func main() {
 
 	backgroundCtx, backgroundCancel := context.WithCancel(context.Background())
 
-	midHandler := wrapMiddlewares(reverseProxy, backgroundCtx)
+	midHandler := wrapMiddlewares(reverseProxy, backgroundCtx, secretKey)
 
 	server := http.Server{
 		Addr:         ":3000",
@@ -78,12 +81,12 @@ func newProxyDest(urls []*url.URL) *httputil.ReverseProxy {
 	return rProxy
 }
 
-func wrapMiddlewares(reverseProxy *httputil.ReverseProxy, ctx context.Context) http.Handler {
+func wrapMiddlewares(reverseProxy *httputil.ReverseProxy, ctx context.Context, secretKey string) http.Handler {
 	middleware.SetTrustedProxies([]string{"127.0.0.1", "::1"})
 	rl := middleware.NewTokenBucketRateLimiter(ctx)
-	// httputil.ReverseProxy implements serveHTTP(), which is defined in http.Handler.
-	// This is why reverseProxy is accepted as an argument for FixedWinowRateLimiter() and TokenBucketRateLimiter().
-	midHandler := rl.TokenBucketRateLimiter(reverseProxy)
+
+	midHandler := middleware.NewAuthMiddleware(secretKey)(reverseProxy)
+	midHandler = rl.TokenBucketRateLimiter(midHandler)
 	Logger := slog.New(slog.NewJSONHandler(os.Stdout, nil))
 	midHandler = middleware.NewLogRequest(Logger)(midHandler)
 	midHandler = middleware.GenerateLogID(midHandler)

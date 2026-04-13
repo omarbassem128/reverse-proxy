@@ -88,7 +88,7 @@ func (tokenBucketRlStruct *TokenBucketRl) TokenBucketRateLimiter(next http.Handl
 
 func NewTokenBucketRateLimiter(ctx context.Context) *TokenBucketRl {
 	var shards [32]*Shard
-	for i := 0; i < 32; i++ {
+	for i := range 32 {
 		shards[i] = &Shard{clients: make(map[string]*ClientState)}
 	}
 
