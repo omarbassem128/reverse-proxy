@@ -87,6 +87,7 @@ func wrapMiddlewares(reverseProxy *httputil.ReverseProxy, ctx context.Context, s
 
 	midHandler := middleware.NewAuthMiddleware(secretKey)(reverseProxy)
 	midHandler = rl.TokenBucketRateLimiter(midHandler)
+	midHandler = middleware.CorsHandler(midHandler)
 	Logger := slog.New(slog.NewJSONHandler(os.Stdout, nil))
 	midHandler = middleware.NewLogRequest(Logger)(midHandler)
 	midHandler = middleware.GenerateLogID(midHandler)

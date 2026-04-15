@@ -1,20 +1,16 @@
 package middleware
 
 import (
+	"github.com/rs/cors"
 	"net/http"
 )
 
-func CorsConfig(next http.Handler) http.HandlerFunc {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+func CorsHandler(next http.Handler) http.Handler {
 
-		w.Header().Add("Access-Control-Allow-Origin", "https://localhost:3000")
-		if r.Method == http.MethodOptions {
-			w.Header().Add("Access-Control-Allow-Methods", "POST, GET, OPTIONS, PUT, DELETE")
-			w.Header().Add("Access-Control-Allow-Headers", "Accept, Content-Type, Content-Length, Accept-Encoding, Authorization")
-			w.WriteHeader(http.StatusNoContent)
-			return
-		}
-
-		next.ServeHTTP(w, r)
+	c := cors.New(cors.Options{
+		AllowedOrigins:   []string{"https://localhost:3000", "https://localhost:3001", "https://localhost:3002"},
+		AllowCredentials: true,
+		Debug: true,
 	})
+	return c.Handler(next)
 }

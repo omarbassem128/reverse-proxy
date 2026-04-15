@@ -14,7 +14,7 @@ func main() {
 	secretKey := os.Getenv("JWT_SECRET")
 	slicedSecretKey := []byte(secretKey)
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
-		"sub": "user_12345",                          
+		"sub": "user_12345",
 		"exp": time.Now().Add(time.Hour * 24).Unix(),
 	})
 
